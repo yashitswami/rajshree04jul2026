@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rajshree — Performance Diagnostic Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --paper:#FAFAF7;
+    --paper-alt:#F2F1EB;
+    --ink:#0E1013;
+    --ink-2:#5B6067;
+    --ink-3:#8A8E93;
+    --rule:#DBDDD8;
+    --rule-strong:#B8BAB4;
+    --accent:#1C4E80;
+    --accent-tint:#E3EDF6;
+    --strong:#2F8F5C;
+    --strong-tint:#E4F1EA;
+    --concern:#B94A3B;
+    --concern-tint:#F7E4E0;
+    --avoid:#C48412;
+    --avoid-tint:#FAEFD5;
+    --font-display:'Instrument Serif', 'Cormorant Garamond', Georgia, serif;
+    --font-body:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-body);
+    background:var(--paper);
+    color:var(--ink);
+    font-size:15px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    font-feature-settings:"kern","liga","tnum";
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:64px 32px 96px}
+  /* Header */
+  .masthead{border-bottom:1px solid var(--ink);padding-bottom:32px;margin-bottom:48px}
+  .eyebrow{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-2);margin-bottom:16px;display:flex;align-items:center;gap:12px}
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+  h1{font-family:var(--font-display);font-weight:400;font-size:64px;line-height:1;letter-spacing:-.01em;margin-bottom:20px}
+  h1 em{font-style:italic;color:var(--accent)}
+  .lede{font-size:19px;line-height:1.5;color:var(--ink-2);max-width:720px;margin-bottom:24px;font-family:var(--font-display);font-style:italic}
+  .metaline{display:flex;flex-wrap:wrap;gap:32px;font-size:13px;color:var(--ink-2)}
+  .metaline b{color:var(--ink);font-weight:500}
+
+  /* Section headers */
+  section{margin-bottom:72px;scroll-margin-top:24px}
+  .section-head{margin-bottom:32px}
+  .section-num{font-family:var(--font-display);font-size:14px;color:var(--accent);letter-spacing:.1em;margin-bottom:8px}
+  h2{font-family:var(--font-display);font-weight:400;font-size:38px;line-height:1.1;margin-bottom:12px;letter-spacing:-.005em}
+  h2 em{font-style:italic}
+  .section-sub{font-size:15px;color:var(--ink-2);max-width:680px}
+
+  /* Prose */
+  p{margin-bottom:14px;max-width:720px}
+  p.wide{max-width:none}
+  strong{font-weight:600;color:var(--ink)}
+  em.hl{font-style:normal;background:var(--avoid-tint);padding:1px 4px;border-radius:2px}
+  em.pos{font-style:normal;background:var(--strong-tint);padding:1px 4px;border-radius:2px;color:#1F5A3A}
+  em.neg{font-style:normal;background:var(--concern-tint);padding:1px 4px;border-radius:2px;color:#7A2A20}
+
+  /* Stat cards */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:32px 0}
+  .stat{background:var(--paper-alt);padding:20px;border-radius:4px;position:relative}
+  .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-2);margin-bottom:12px;font-weight:500}
+  .stat-val{font-family:var(--font-display);font-size:44px;line-height:1;color:var(--ink);letter-spacing:-.01em}
+  .stat-val small{font-size:15px;color:var(--ink-2);font-family:var(--font-body);margin-left:4px}
+  .stat-cap{font-size:12px;color:var(--ink-2);margin-top:8px}
+
+  /* Chart cards */
+  .chart-card{background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:24px;margin:24px 0}
+  .chart-title{font-size:13px;font-weight:500;color:var(--ink);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  .chart-note{font-size:12px;color:var(--ink-2);margin-bottom:20px}
+  .chart-wrap{position:relative;width:100%}
+  .h300{height:300px}
+  .h360{height:360px}
+  .h420{height:420px}
+  .h480{height:480px}
+  .h560{height:560px}
+
+  /* Legends */
+  .legend{display:flex;flex-wrap:wrap;gap:20px;margin-bottom:16px;font-size:12px;color:var(--ink-2)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:2px}
+  .sw-c{background:#2F8F5C}
+  .sw-w{background:#B94A3B}
+  .sw-s{background:#C48412}
+  .sw-p{background:#7B4FA0}
+  .sw-chem{background:#1C4E80}
+  .sw-phy{background:#B94A3B}
+  .sw-math{background:#C48412}
+
+  /* Tables */
+  .tbl-wrap{overflow-x:auto;margin:20px 0}
+  table.data{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  table.data th,table.data td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--rule)}
+  table.data th{font-weight:500;color:var(--ink-2);font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--ink)}
+  table.data th:first-child,table.data td:first-child{text-align:left;padding-left:0}
+  table.data td:first-child{font-weight:500;color:var(--ink)}
+  table.data .subj{color:var(--ink-2);font-size:11px;font-weight:400}
+  table.data .cell{position:relative}
+  .acc-hi{color:#1F5A3A;font-weight:500}
+  .acc-mid{color:var(--ink)}
+  .acc-lo{color:#8A3628;font-weight:500}
+  .skip-hi{color:#8B5A0B;font-weight:500}
+  .barline{display:block;height:3px;background:var(--rule);border-radius:2px;margin-top:4px;position:relative;overflow:hidden}
+  .barline i{display:block;height:100%;background:var(--strong)}
+
+  /* Callout boxes */
+  .callout{background:var(--paper-alt);border-left:3px solid var(--accent);padding:20px 24px;margin:24px 0;border-radius:0 4px 4px 0}
+  .callout.warn{border-left-color:var(--concern);background:var(--concern-tint)}
+  .callout.avoid{border-left-color:var(--avoid);background:var(--avoid-tint)}
+  .callout.good{border-left-color:var(--strong);background:var(--strong-tint)}
+  .callout-title{font-family:var(--font-display);font-size:20px;margin-bottom:8px;font-style:italic}
+  .callout p{margin-bottom:8px;max-width:none}
+  .callout p:last-child{margin-bottom:0}
+
+  /* Two-col */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+  @media (max-width:720px){
+    .wrap{padding:40px 20px}
+    h1{font-size:44px}
+    h2{font-size:30px}
+    .stat-grid{grid-template-columns:repeat(2,1fr)}
+    .two-col{grid-template-columns:1fr}
+    .metaline{gap:16px}
+  }
+
+  /* Subject header row */
+  .subj-row{display:flex;align-items:baseline;gap:12px;margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+  .subj-row h3{font-family:var(--font-display);font-size:26px;font-weight:400}
+  .subj-row .tag{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-2);padding:2px 8px;background:var(--paper-alt);border-radius:2px}
+  .subj-row .tag.good{color:#1F5A3A;background:var(--strong-tint)}
+  .subj-row .tag.mid{color:#8B5A0B;background:var(--avoid-tint)}
+  .subj-row .tag.warn{color:#7A2A20;background:var(--concern-tint)}
+
+  /* Recommendation cards */
+  .rec-list{display:grid;gap:16px;margin:24px 0}
+  .rec{display:grid;grid-template-columns:60px 1fr;gap:20px;padding:20px 0;border-top:1px solid var(--rule)}
+  .rec-num{font-family:var(--font-display);font-size:44px;color:var(--accent);line-height:.9;font-style:italic}
+  .rec-body h4{font-family:var(--font-body);font-size:15px;font-weight:600;margin-bottom:6px;color:var(--ink)}
+  .rec-body p{font-size:14px;color:var(--ink-2);margin-bottom:0;line-height:1.6}
+  .rec-body .why{margin-top:8px;font-size:13px;color:var(--ink-3);font-style:italic}
+
+  /* Table of contents */
+  .toc{background:var(--paper-alt);padding:20px 24px;border-radius:4px;margin-bottom:48px}
+  .toc-title{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-2);margin-bottom:12px;font-weight:500}
+  .toc ol{list-style:none;counter-reset:tocitem;column-count:2;column-gap:32px}
+  .toc li{counter-increment:tocitem;font-size:14px;padding:4px 0}
+  .toc li::before{content:counter(tocitem, upper-roman) ".";font-family:var(--font-display);color:var(--accent);margin-right:8px;font-style:italic}
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid transparent}
+  .toc a:hover{border-bottom-color:var(--ink)}
+
+  /* Footer */
+  footer{border-top:1px solid var(--ink);padding-top:24px;margin-top:64px;font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
+
+  /* Verdict badge */
+  .verdict{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:2px 6px;border-radius:2px;text-transform:uppercase;letter-spacing:.06em;font-weight:500}
+  .v-avoid{background:var(--avoid-tint);color:#8B5A0B}
+  .v-error{background:var(--concern-tint);color:#7A2A20}
+  .v-mixed{background:#E7E1F0;color:#4A2E7A}
+  .v-strong{background:var(--strong-tint);color:#1F5A3A}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- MASTHEAD -->
+<header class="masthead">
+  <div class="eyebrow">Performance Diagnostic Report</div>
+  <h1>The <em>attempt gap</em>, not the ability gap.</h1>
+  <p class="lede">A nine-month diagnostic of Rajshree's test attempts across Chemistry, Physics and Mathematics — mapping what she knows, what she avoids, and where the score is being left on the table.</p>
+  <div class="metaline">
+    <div><b>Student:</b> Rajshree</div>
+    <div><b>Window:</b> Sep 2025 – Jun 2026</div>
+    <div><b>Tests analysed:</b> 299</div>
+    <div><b>Attempts:</b> 3,400</div>
+    <div><b>Subjects:</b> PCM (JEE track)</div>
+  </div>
+</header>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#exec">Executive summary</a></li>
+    <li><a href="#subject">Subject-wise performance</a></li>
+    <li><a href="#chapter">Chapter × time & complexity</a></li>
+    <li><a href="#temporal">Weak chapters over time</a></li>
+    <li><a href="#psych">The psychological pattern</a></li>
+    <li><a href="#attempt">Attempt & mistake patterns</a></li>
+    <li><a href="#plan">The improvement plan</a></li>
+  </ol>
+</div>
+
+<!-- EXECUTIVE SUMMARY -->
+<section id="exec">
+  <div class="section-head">
+    <div class="section-num">I. Executive summary</div>
+    <h2>She isn't struggling to solve. She's <em>choosing not to try.</em></h2>
+    <p class="section-sub">The headline is a paradox: her accuracy on questions she attempts is very good, but 1 in 6 questions never gets an answer. The gap between "attempt" and "avoid" — not the gap between "right" and "wrong" — is where the score is being lost.</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="stat-label">Attempted accuracy</div>
+      <div class="stat-val">79.7<small>%</small></div>
+      <div class="stat-cap">Right when she tries (2,305 of 2,891)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Overall correct</div>
+      <div class="stat-val">67.8<small>%</small></div>
+      <div class="stat-cap">Of all 3,400 attempts</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Skipped</div>
+      <div class="stat-val">15.0<small>%</small></div>
+      <div class="stat-cap">509 blank submissions</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Wrong</div>
+      <div class="stat-val">16.6<small>%</small></div>
+      <div class="stat-cap">565 incorrect attempts</div>
+    </div>
+  </div>
+
+  <p>Read those two rates side by side. When Rajshree engages with a question, four out of five come out right — that is a strong signal of conceptual mastery. But her attempt rate on hard problems collapses: at the highest problem-complexity tier (PC=4) she skips 58% of questions outright. The score lost to skipping is <strong>larger than the score lost to being wrong</strong>. This report is a map of where and why that happens, and what to do about it.</p>
+
+  <div class="callout">
+    <div class="callout-title">The one-line diagnosis</div>
+    <p>Rajshree's ceiling isn't her <em>capability</em>. It's her <em>willingness to engage</em> with hard Maths and mechanics questions. Two subjects show this clearly: Chemistry (7.9% skip) and Mathematics (22.2% skip) have almost identical attempted accuracy — 80.8% and 80.6% — meaning the difference between them is entirely a decision to attempt, not an ability to solve.</p>
+  </div>
+</section>
+
+<!-- SUBJECT PERFORMANCE -->
+<section id="subject">
+  <div class="section-head">
+    <div class="section-num">II. Subject-wise performance</div>
+    <h2>Three subjects, <em>three different problems.</em></h2>
+    <p class="section-sub">Overall numbers hide the truth. Broken down by subject, Rajshree has one strong subject, one uneven subject, and one avoidance-driven subject — and the recommended intervention for each is different.</p>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Attempt outcome by subject</div>
+    <div class="chart-note">Stacked count. The green bar tells you what she gets right; the amber bar tells you what she leaves untouched.</div>
+    <div class="legend">
+      <span><span class="swatch sw-c"></span>Correct</span>
+      <span><span class="swatch sw-w"></span>Wrong</span>
+      <span><span class="swatch sw-s"></span>Skipped</span>
+      <span><span class="swatch sw-p"></span>Partial</span>
+    </div>
+    <div class="chart-wrap h300"><canvas id="chartSubject" role="img" aria-label="Bar chart showing attempt outcomes stacked by subject."></canvas></div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>Subject</th><th>Attempts</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Attempted acc.</th><th>Skip rate</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Chemistry</td><td>1,336</td><td>994</td><td>228</td><td>106</td><td class="acc-hi">80.8%</td><td class="acc-hi">7.9%</td></tr>
+        <tr><td>Physics</td><td>1,024</td><td>658</td><td>181</td><td>176</td><td>77.6%</td><td class="skip-hi">17.2%</td></tr>
+        <tr><td>Mathematics</td><td>1,008</td><td>632</td><td>148</td><td>224</td><td>80.6%</td><td class="skip-hi">22.2%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <p><strong>Chemistry — her anchor.</strong> She attempts nearly everything (only 7.9% skipped) and hits over 80% correct on what she attempts. Physical Chemistry chapters like Ionic Equilibrium (83%), Chemical Bonding (79%) and Chemical Thermodynamics (77%) are consistently strong. Organic Isomerism sits at 95%. She has genuine confidence here.</p>
+      <p><strong>Physics — uneven.</strong> 77.6% attempted accuracy is respectable, but the 17.2% skip rate reveals a specific pattern: <em>mechanics chapters</em> (SHM, Rotational Motion, Centre of Mass, Gravitation, Fluid Mechanics, Newton's Laws) all appear in the bottom performance band. Electromagnetism and Modern Physics chapters are more stable.</p>
+    </div>
+    <div>
+      <p><strong>Mathematics — the avoidance problem.</strong> Of all questions she attempts in Maths, she gets 80.6% right — essentially the same as Chemistry. But she leaves <em class="hl">22 out of every 100 Maths questions blank</em>. This is not a knowledge deficit; it is a decision made in the moment of seeing the question.</p>
+      <p>The implication is important: telling her to "study Maths more" is the wrong prescription. The right prescription is to change the encounter — to build the habit of writing something down before deciding a Maths question is skippable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CHAPTER × PC × TC -->
+<section id="chapter">
+  <div class="section-head">
+    <div class="section-num">III. Chapter, time complexity &amp; problem complexity</div>
+    <h2>Where the pattern <em>lives.</em></h2>
+    <p class="section-sub">For each subject, the tables below rank the weakest chapters (minimum 15 attempts) and break performance down by problem complexity (PC 1–4) and time complexity (TC 1–4). Higher numbers on either axis mean the question was designed to be harder or slower.</p>
+  </div>
+
+  <!-- MATHEMATICS TABLE -->
+  <div class="subj-row">
+    <h3>Mathematics</h3>
+    <span class="tag warn">Avoidance-driven</span>
+  </div>
+  <p>Read down the PC=3 column: on the hardest problems, correct-answer rate falls off a cliff — 2/10 in Quadratic Equations, 3/16 in Limits, 0/3 in Indefinite Integration, 3/15 in Inverse Trig. Where PC=3 accuracy is very low, it is because most attempts were skipped, not because the answers were wrong. On TC=3 (slow-solve) questions the same pattern appears.</p>
+
+  <div class="tbl-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>Chapter</th><th>N</th><th>Correct</th><th>Skip%</th><th>PC=1 acc</th><th>PC=2 acc</th><th>PC=3 acc</th><th>TC=1 acc</th><th>TC=2 acc</th><th>TC=3 acc</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Quadratic Equations</td><td>31</td><td class="acc-lo">39%</td><td class="skip-hi">48%</td><td>1/4</td><td>9/11</td><td class="acc-lo">2/10</td><td>1/2</td><td>4/8</td><td class="acc-lo">7/18</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Limits</td><td>48</td><td class="acc-lo">46%</td><td class="skip-hi">38%</td><td>5/7</td><td>14/25</td><td class="acc-lo">3/16</td><td>4/5</td><td>14/32</td><td>4/11</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Permutations &amp; Combinations</td><td>55</td><td class="acc-lo">51%</td><td>16%</td><td>3/9</td><td class="acc-lo">23/40</td><td>2/6</td><td>2/8</td><td class="acc-lo">22/33</td><td>4/14</td><td><span class="verdict v-error">Genuine gap</span></td></tr>
+        <tr><td>Sequences &amp; Series</td><td>17</td><td>53%</td><td class="skip-hi">41%</td><td>3/4</td><td>4/9</td><td>2/3</td><td>3/4</td><td>4/7</td><td>1/5</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Function</td><td>15</td><td>53%</td><td>20%</td><td>2/2</td><td>3/6</td><td>3/7</td><td>2/2</td><td>2/4</td><td>4/9</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Inverse Trigonometric Functions</td><td>61</td><td>57%</td><td class="skip-hi">28%</td><td>15/17</td><td>17/28</td><td class="acc-lo">3/15</td><td>15/16</td><td>17/30</td><td class="acc-lo">2/13</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Indefinite Integration</td><td>72</td><td>60%</td><td>24%</td><td>30/43</td><td>13/26</td><td class="acc-lo">0/3</td><td>28/47</td><td>14/21</td><td>1/4</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Parabola</td><td>65</td><td>60%</td><td>18%</td><td>26/35</td><td>12/28</td><td>1/2</td><td>22/31</td><td>16/29</td><td>1/5</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Binomial Theorem</td><td>37</td><td>62%</td><td>24%</td><td>4/6</td><td>14/21</td><td>4/8</td><td>1/2</td><td>13/21</td><td>8/12</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Definite Integration</td><td>68</td><td>65%</td><td>22%</td><td>38/59</td><td>5/7</td><td>1/1</td><td>37/58</td><td>6/8</td><td>1/2</td><td><span class="verdict v-strong">Manageable</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>What the columns say together.</strong> On easy Maths (PC=1, TC=1) she is above 85% in most chapters — those are wins. Everything above PC=2/TC=2 becomes ragged. In three chapters — <em class="hl">Quadratic Equations, Limits, Inverse Trigonometry</em> — the PC=3 accuracy is under 25% because she almost never attempts a PC=3 question in those chapters. This is not "she doesn't know Limits." She knows PC=1 Limits (5/7 = 71%). She refuses PC=3 Limits.</p>
+
+  <!-- PHYSICS TABLE -->
+  <div class="subj-row">
+    <h3>Physics</h3>
+    <span class="tag mid">Mechanics-heavy weakness</span>
+  </div>
+  <p>Physics is a chapter-clustering problem. Nearly every weak chapter is from <em>mechanics</em> — Newton's Laws, SHM, Centre of Mass, Rotational Motion, Fluid Mechanics, Gravitation. Electromagnetism and Modern Physics chapters are relatively stronger. The TC pattern is telling: she does well on TC=1 physics (quick-solve), collapses on TC=3.</p>
+
+  <div class="tbl-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>Chapter</th><th>N</th><th>Correct</th><th>Skip%</th><th>PC=1 acc</th><th>PC=2 acc</th><th>PC=3 acc</th><th>TC=1 acc</th><th>TC=2 acc</th><th>TC=3 acc</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Newton's Laws &amp; Friction</td><td>17</td><td class="acc-lo">47%</td><td>18%</td><td>5/9</td><td>3/7</td><td>0/1</td><td>4/7</td><td>4/8</td><td>0/2</td><td><span class="verdict v-error">Genuine gap</span></td></tr>
+        <tr><td>Simple Harmonic Motion</td><td>35</td><td>51%</td><td>17%</td><td>15/23</td><td class="acc-lo">3/12</td><td>—</td><td>7/9</td><td>10/23</td><td>1/3</td><td><span class="verdict v-error">Genuine gap</span></td></tr>
+        <tr><td>Centre of Mass</td><td>15</td><td>53%</td><td class="skip-hi">27%</td><td>3/4</td><td>5/9</td><td>0/2</td><td>—</td><td>7/12</td><td>1/3</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Centre of Mass &amp; Collisions</td><td>40</td><td>52%</td><td>20%</td><td>14/14</td><td class="acc-lo">5/17</td><td>2/9</td><td>6/9</td><td>12/22</td><td>3/9</td><td><span class="verdict v-error">Genuine gap</span></td></tr>
+        <tr><td>Gravitation</td><td>47</td><td>57%</td><td>21%</td><td>17/24</td><td>9/20</td><td>1/3</td><td>12/17</td><td>14/29</td><td>1/1</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Fluid Mechanics</td><td>83</td><td>60%</td><td>23%</td><td>27/39</td><td>21/40</td><td>2/4</td><td>22/29</td><td>27/53</td><td>1/1</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Mechanics of Rotational Motion</td><td>74</td><td>57%</td><td>24%</td><td>22/31</td><td>13/23</td><td class="acc-lo">7/20</td><td>13/19</td><td>22/37</td><td>7/17</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Elasticity</td><td>24</td><td>62%</td><td>21%</td><td>6/8</td><td>8/15</td><td>1/1</td><td>5/6</td><td>10/18</td><td>—</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Electrostatics</td><td>171</td><td>66%</td><td>18%</td><td>54/79</td><td>52/72</td><td class="acc-lo">7/20</td><td>43/57</td><td>59/96</td><td>11/18</td><td><span class="verdict v-avoid">Avoiding hard</span></td></tr>
+        <tr><td>Work, Power &amp; Energy</td><td>61</td><td>67%</td><td>18%</td><td>19/25</td><td>17/21</td><td>5/13</td><td>13/18</td><td>24/31</td><td>4/11</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>The mechanics ceiling is real.</strong> In SHM she gets 65% of PC=1 right but only 25% of PC=2 right — a large gap. In Centre of Mass &amp; Collisions the PC=1 score is <em class="pos">100% (14/14)</em> but PC=2 is 29% and PC=3 is 22%. This is a classic pattern for a student who has memorised formulas without building physical intuition — she can plug into F=ma or KE=½mv², but multi-object or multi-stage problems trip her up.</p>
+
+  <!-- CHEMISTRY TABLE -->
+  <div class="subj-row">
+    <h3>Chemistry</h3>
+    <span class="tag good">Anchor subject</span>
+  </div>
+  <p>Chemistry is the shortest section because there is very little to warn about. Below is the bottom of her Chemistry table — even these chapters are performing at 62–77% accuracy, which are strong numbers. The skip rate stays in single digits almost everywhere.</p>
+
+  <div class="tbl-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>Chapter</th><th>N</th><th>Correct</th><th>Skip%</th><th>PC=1 acc</th><th>PC=2 acc</th><th>PC=3 acc</th><th>TC=1 acc</th><th>TC=2 acc</th><th>TC=3 acc</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Periodic Table &amp; Properties</td><td>16</td><td>62%</td><td>0%</td><td>5/6</td><td>5/10</td><td>—</td><td>4/6</td><td>6/10</td><td>—</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Optical Isomerism</td><td>37</td><td>65%</td><td>11%</td><td>15/22</td><td>9/15</td><td>—</td><td>9/13</td><td>14/22</td><td>1/2</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Solutions</td><td>116</td><td>67%</td><td>11%</td><td>35/46</td><td>37/61</td><td>5/7</td><td>54/71</td><td>22/42</td><td>2/3</td><td><span class="verdict v-mixed">Mixed</span></td></tr>
+        <tr><td>Haloalkanes &amp; Haloarenes</td><td>89</td><td>69%</td><td>10%</td><td>38/54</td><td>23/35</td><td>—</td><td>34/50</td><td>27/39</td><td>—</td><td><span class="verdict v-strong">Manageable</span></td></tr>
+        <tr><td>Hydrocarbons</td><td>115</td><td>72%</td><td>10%</td><td>46/65</td><td>31/42</td><td>6/8</td><td>36/48</td><td>40/58</td><td>7/9</td><td><span class="verdict v-strong">Manageable</span></td></tr>
+        <tr><td>Atomic Structure</td><td>88</td><td>74%</td><td>16%</td><td>35/44</td><td>26/37</td><td>4/7</td><td>25/32</td><td>32/46</td><td>2/4</td><td><span class="verdict v-strong">Manageable</span></td></tr>
+        <tr><td>Chemical Thermodynamics</td><td>69</td><td>77%</td><td>7%</td><td>34/43</td><td>17/24</td><td>2/2</td><td>37/46</td><td>13/20</td><td>3/3</td><td><span class="verdict v-strong">Strong</span></td></tr>
+        <tr><td>Ionic Equilibrium</td><td>69</td><td>83%</td><td>4%</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-strong">Strong</span></td></tr>
+        <tr><td>Isomerism</td><td>20</td><td>95%</td><td>0%</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-strong">Strong</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout good">
+    <div class="callout-title">The Chemistry lesson</div>
+    <p>Chemistry PC=3 accuracy is 81% (nearly identical to PC=1 at 82%). She is not "worse at hard chemistry." She just <em>tries</em> hard chemistry. Whatever internal permission she gives herself to engage with a difficult chemistry question is what she needs to extend to Physics and Maths. This is a portable skill she already has — she has already demonstrated it.</p>
+  </div>
+</section>
+
+<!-- TEMPORAL -->
+<section id="temporal">
+  <div class="section-head">
+    <div class="section-num">IV. Weak chapters revisited over time</div>
+    <h2>Some chapters healed. <em>Others didn't get another chance.</em></h2>
+    <p class="section-sub">A weak chapter is only truly weak if it stayed weak on re-encounter. The table below tracks each weak chapter's accuracy across the months it was tested. It reveals which weaknesses were resolved by later revision — and which chapters she has not seen since they first went badly.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>Chapter</th><th class="subj">Subj</th><th>Oct 25</th><th>Nov 25</th><th>Dec 25</th><th>Jan 26</th><th>Feb 26</th><th>Mar 26</th><th>Apr 26</th><th>May 26</th><th>Jun 26</th><th>Trajectory</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Quadratic Equations</td><td class="subj">M</td><td class="acc-lo">28%</td><td>—</td><td>50%</td><td>—</td><td class="acc-hi">100%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-strong">Resolved</span></td></tr>
+        <tr><td>Limits</td><td class="subj">M</td><td class="acc-hi">88%</td><td class="acc-lo">33%</td><td>50%</td><td>—</td><td class="acc-hi">100%</td><td>—</td><td>0%</td><td>0%</td><td>—</td><td><span class="verdict v-mixed">Regressed</span></td></tr>
+        <tr><td>Permutations &amp; Combinations</td><td class="subj">M</td><td>—</td><td>—</td><td>25%</td><td class="acc-hi">76%</td><td class="acc-lo">37%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-error">Not fixed</span></td></tr>
+        <tr><td>Sequences &amp; Series</td><td class="subj">M</td><td>62%</td><td>—</td><td>0%</td><td>—</td><td>33%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-mixed">Faded</span></td></tr>
+        <tr><td>Function</td><td class="subj">M</td><td>—</td><td>—</td><td>0%</td><td>—</td><td>50%</td><td>67%</td><td>0%</td><td class="acc-hi">100%</td><td>—</td><td><span class="verdict v-mixed">Unstable</span></td></tr>
+        <tr><td>Inverse Trig Functions</td><td class="subj">M</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>67%</td><td class="acc-hi">61%</td><td class="acc-lo">17%</td><td>—</td><td><span class="verdict v-error">Regressed</span></td></tr>
+        <tr><td>Indefinite Integration</td><td class="subj">M</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>63%</td><td>54%</td><td><span class="verdict v-mixed">Recent, mid</span></td></tr>
+        <tr><td>Parabola</td><td class="subj">M</td><td>—</td><td>33%</td><td class="acc-hi">81%</td><td>36%</td><td>33%</td><td>—</td><td>—</td><td>33%</td><td>—</td><td><span class="verdict v-error">Regressed</span></td></tr>
+        <tr><td>Newton's Laws &amp; Friction</td><td class="subj">P</td><td class="acc-lo">0%</td><td>—</td><td>50%</td><td>—</td><td>50%</td><td>—</td><td>—</td><td>60%</td><td>—</td><td><span class="verdict v-mixed">Improving</span></td></tr>
+        <tr><td>Simple Harmonic Motion</td><td class="subj">P</td><td>—</td><td>—</td><td>—</td><td>50%</td><td class="acc-hi">100%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-mixed">Untested</span></td></tr>
+        <tr><td>Centre of Mass &amp; Collisions</td><td class="subj">P</td><td>50%</td><td>—</td><td class="acc-hi">100%</td><td class="acc-hi">100%</td><td>0%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-mixed">Unstable</span></td></tr>
+        <tr><td>Gravitation</td><td class="subj">P</td><td class="acc-lo">25%</td><td>59%</td><td class="acc-hi">64%</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-strong">Resolved</span></td></tr>
+        <tr><td>Fluid Mechanics</td><td class="subj">P</td><td>—</td><td class="acc-lo">8%</td><td class="acc-hi">73%</td><td>67%</td><td>0%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-mixed">Resolved-ish</span></td></tr>
+        <tr><td>Rotational Motion</td><td class="subj">P</td><td class="acc-hi">76%</td><td>50%</td><td class="acc-hi">100%</td><td>—</td><td>33%</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="verdict v-mixed">Unstable</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <p><strong>Two chapters genuinely healed.</strong> Quadratic Equations went from 28% in October to 100% by February — a clean recovery, though only 4 questions tested it in Feb. Gravitation moved from 25% (Oct) → 59% (Nov) → 64% (Dec), then dropped out of the syllabus. Fluid Mechanics recovered from 8% to 73% in one month.</p>
+      <p><strong>Four chapters regressed.</strong> Limits, Parabola, Inverse Trig and Permutations &amp; Combinations all showed a peak followed by a fall — she solved them once, then lost the retention. This is the classic "learned for the test, not for the concept" signature.</p>
+    </div>
+    <div>
+      <p><strong>The dangerous silence.</strong> Simple Harmonic Motion appears in only two months. She got 61% in Jan on 34 attempts, then 100% on <em>one question</em> in Feb, and hasn't been tested since. That is not a resolved weakness — it is an unaudited one. If SHM comes up on the final board or mock, this dataset says she is not ready.</p>
+      <p>The same is true for Function (last real test: April 2026, 0/2), Sequences and Series (last real test: Oct 2025), and Centre of Mass (last real test: Oct 2025). These are chapters that need <em class="hl">deliberate re-testing</em>, not just reading.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PSYCHOLOGICAL -->
+<section id="psych">
+  <div class="section-head">
+    <div class="section-num">V. The psychological pattern</div>
+    <h2>The confidence gradient <em>runs down the difficulty scale.</em></h2>
+    <p class="section-sub">The single most important chart in this report is below. It shows the percentage of questions Rajshree skips as difficulty (problem complexity) increases — split by subject. Chemistry stays flat. Physics slopes up sharply. Mathematics is nearly a wall.</p>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Skip rate by subject and problem complexity</div>
+    <div class="chart-note">Chemistry: she engages equally at every difficulty tier. Maths: she gives up at PC=3 more than half the time. This is the confidence chart.</div>
+    <div class="legend">
+      <span><span class="swatch sw-chem"></span>Chemistry</span>
+      <span><span class="swatch sw-phy"></span>Physics</span>
+      <span><span class="swatch sw-math"></span>Mathematics</span>
+    </div>
+    <div class="chart-wrap h360"><canvas id="chartSkipPC" role="img" aria-label="Line chart of skip rate by problem complexity, split by subject."></canvas></div>
+  </div>
+
+  <p class="wide">The critical observation: <em class="pos">on the questions Rajshree attempts, her accuracy at PC=3 is nearly the same as her accuracy at PC=1</em> — 76–81% across all three subjects. That means <strong>her difficulty ceiling as a solver is far higher than her difficulty ceiling as an attempter.</strong> The bottleneck lives in the moment of deciding to try.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">What this pattern typically means</div>
+    <p><strong>1. Pattern recognition, not conceptual recall.</strong> She has trained herself to recognise problem types from PC=1 and 2. When a PC=3 problem arrives, it doesn't fit a template she has seen — so instead of building the solution, she treats "I don't recognise this" as "I can't solve this." The evidence: when she does attempt PC=3, she gets 74–81% right. She could solve them; she doesn't feel she could.</p>
+    <p><strong>2. Time-anxiety avoidance.</strong> Notice the TC=3 columns in the chapter tables. In Maths especially, TC=3 accuracy is near-zero because those questions are skipped, not attempted-and-wrong. A student who has been coached to "protect time" often over-applies the rule — she is skipping to protect a clock that isn't running out.</p>
+    <p><strong>3. Subject-linked self-image.</strong> The fact that <em>Chemistry doesn't show this pattern</em> is diagnostically important. She thinks of herself as "good at Chemistry" and therefore engages. She thinks of herself as "not the Maths one" and therefore withdraws. This is a self-concept problem more than a syllabus problem.</p>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Attempt engagement over time — PC=3 skip rate by month</div>
+    <div class="chart-note">Whether her willingness to try hard problems is trending in the right direction.</div>
+    <div class="chart-wrap h300"><canvas id="chartPC3Trend" role="img" aria-label="Line chart of monthly PC=3 skip rate."></canvas></div>
+  </div>
+
+  <p class="wide">The trend is <em>improving but unstable.</em> The PC=3 skip rate ran 45–52% in Oct–Nov 2025, dropped to a low of 17% in Feb 2026 (her best month), then relapsed to 32–50% through the spring. She has proven she can push herself to engage; she has not proven she can do it consistently. May 2026 saw the skip rate climb again, and this is worth flagging — it coincides with the volume of testing rising to 487 attempts that month, suggesting fatigue-driven withdrawal under sustained testing load.</p>
+</section>
+
+<!-- ATTEMPT PATTERNS -->
+<section id="attempt">
+  <div class="section-head">
+    <div class="section-num">VI. Attempt &amp; mistake patterns over time</div>
+    <h2>Wrong-answer rate is <em>flat.</em> Skip rate is <em>slowly recovering.</em></h2>
+    <p class="section-sub">Two temporal patterns run in parallel — one for the questions she attempts and gets wrong, and one for the questions she doesn't attempt. Reading them together shows what nine months of preparation has actually changed.</p>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Monthly attempt outcome — as a share of that month's attempts</div>
+    <div class="chart-note">If preparation were working perfectly, the green line rises and the amber/red lines fall.</div>
+    <div class="legend">
+      <span><span class="swatch sw-c"></span>Correct %</span>
+      <span><span class="swatch sw-w"></span>Wrong %</span>
+      <span><span class="swatch sw-s"></span>Skipped %</span>
+    </div>
+    <div class="chart-wrap h360"><canvas id="chartMonthly" role="img" aria-label="Line chart of monthly correct, wrong and skipped rates."></canvas></div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <p><strong>The wrong-rate is not falling.</strong> Nine months of practice and the monthly wrong-answer rate has stayed in a tight 12–19% band. Some months (April, May 2026) it drifted higher. This says the <em>quality</em> of her attempts is not improving — she is making roughly the same proportion of mistakes now as she was in October. The revisions she is doing after each test are not translating into a lower error rate on the next test.</p>
+    </div>
+    <div>
+      <p><strong>The skip-rate is falling but not linearly.</strong> From 18–22% in Oct–Nov 2025 down to 11% in Feb and April 2026 — a real improvement. But it has climbed back to 13–15% in May–Jun. The graph shows her engagement is a floor to reach, not a habit to hold. The fluctuation is roughly the amount you would expect if her willingness to attempt hard questions is mood-based rather than structural.</p>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Monthly wrong-answer rate — by subject</div>
+    <div class="chart-note">Which subject is she getting worse at, and which better?</div>
+    <div class="legend">
+      <span><span class="swatch sw-chem"></span>Chemistry</span>
+      <span><span class="swatch sw-phy"></span>Physics</span>
+      <span><span class="swatch sw-math"></span>Mathematics</span>
+    </div>
+    <div class="chart-wrap h360"><canvas id="chartSubjWrong" role="img" aria-label="Line chart of monthly wrong-answer rate by subject."></canvas></div>
+  </div>
+
+  <p class="wide"><strong>Chemistry wrong-rate ticked up.</strong> January 2026 (20%), April (23%) and June (18%) are all higher than her Oct–Dec 2025 chemistry error rates. Something has slipped — most likely, as new Class XII chemistry chapters entered rotation, they were tested before being fully assimilated. <strong>Physics is stable-to-slightly-worse.</strong> <strong>Maths wrong-rate is stable, but remember: the skips are hiding real weakness</strong> — the low Maths wrong-rate is partly because she isn't attempting the hard ones.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">The independence question</div>
+    <p>Are the wrong answers concentrated in the same chapters as the skips, or are they independent? The tables in Section III answer this: they are <em>largely independent.</em> Permutations &amp; Combinations, SHM, Centre of Mass and Newton's Laws are the "high-wrong" chapters. Quadratic Equations, Limits, Inverse Trig, Sequences &amp; Series and Rotational Motion are the "high-skip" chapters. Different chapters need different interventions.</p>
+    <p><strong>High-wrong chapters</strong> need concept revision — the underlying idea is not landed. <strong>High-skip chapters</strong> need attempt-training — the concept is likely there, but the engagement isn't.</p>
+  </div>
+</section>
+
+<!-- IMPROVEMENT PLAN -->
+<section id="plan">
+  <div class="section-head">
+    <div class="section-num">VII. The improvement plan</div>
+    <h2>Six changes, <em>ordered by leverage.</em></h2>
+    <p class="section-sub">These are ordered by how much score they should return per hour of effort — starting with the highest-leverage intervention. The first is a behavioural change, not a syllabus change, and it is expected to add the most marks.</p>
+  </div>
+
+  <div class="rec-list">
+
+    <div class="rec">
+      <div class="rec-num">i</div>
+      <div class="rec-body">
+        <h4>The "attempt something" rule for Maths</h4>
+        <p>For the next 30 days of practice, Rajshree writes at least one line of working for <em>every</em> Maths question — even the ones she would normally skip. The line can be "I would draw a diagram," "let x = the unknown," or "this uses the formula for …" She is not required to solve. She is required to <em>begin.</em></p>
+        <p class="why">Rationale: her attempted-accuracy in Maths is 80.6% — nearly identical to Chemistry. The gap is not knowledge; it is the moment of not-beginning. Forcing a first line short-circuits the skip decision.</p>
+      </div>
+    </div>
+
+    <div class="rec">
+      <div class="rec-num">ii</div>
+      <div class="rec-body">
+        <h4>Rebuild mechanics from scratch — not chapter by chapter, but concept-first</h4>
+        <p>SHM, Rotational Motion, Centre of Mass, Newton's Laws, Fluid Mechanics and Gravitation all cluster in the weak list. Instead of "revise SHM this week," spend two weeks re-deriving core mechanics concepts (frames of reference, conservation laws, moment of inertia, oscillation). Then re-test the chapters together in a single 60-question set.</p>
+        <p class="why">Rationale: her PC=1 mechanics accuracy is good (formula plug-in). PC=2 collapses. This is the signature of formulaic learning without physical intuition.</p>
+      </div>
+    </div>
+
+    <div class="rec">
+      <div class="rec-num">iii</div>
+      <div class="rec-body">
+        <h4>Re-test the "silent" weak chapters within 21 days</h4>
+        <p>Four chapters have not had a real re-test since they went badly: <strong>Simple Harmonic Motion, Function, Sequences &amp; Series, and Centre of Mass.</strong> Schedule a targeted 20-question test on each, mixing PC=1, 2 and 3. Whatever the outcome is, then design revision from the actual result — not from the assumption that "it was covered."</p>
+        <p class="why">Rationale: without deliberate re-testing these appear resolved in the surface stats but are almost certainly still weak.</p>
+      </div>
+    </div>
+
+    <div class="rec">
+      <div class="rec-num">iv</div>
+      <div class="rec-body">
+        <h4>Fix Permutations &amp; Combinations by sub-topic</h4>
+        <p>This is her single most error-prone Maths chapter (18 wrong out of 55 attempted). Break it into arrangement-with-repetition, circular permutations, combinations with restrictions, and distribution problems. Do 15 questions on each sub-topic and see which one drives the errors before general revision.</p>
+        <p class="why">Rationale: unlike the skip-driven chapters, P&amp;C failures are attempts. That means the concept-to-application step is broken somewhere specific.</p>
+      </div>
+    </div>
+
+    <div class="rec">
+      <div class="rec-num">v</div>
+      <div class="rec-body">
+        <h4>Practise PC=3 in Chemistry for transfer</h4>
+        <p>Counter-intuitive, but strategic. She already engages with hard Chemistry. Give her <em>more</em> PC=3 Chemistry — Ionic Equilibrium, Chemical Kinetics, Solutions numericals. The goal is not more Chemistry marks (she is already at 80% there). The goal is to strengthen the internal experience of "I attempted a hard question and got it right," which then transfers to Physics and Maths.</p>
+        <p class="why">Rationale: the block is a self-image about engagement with hard questions. Repeated positive experiences of engagement rebuild it.</p>
+      </div>
+    </div>
+
+    <div class="rec">
+      <div class="rec-num">vi</div>
+      <div class="rec-body">
+        <h4>Introduce a wrong-answer log — because the error rate isn't falling</h4>
+        <p>The wrong-rate has been flat at ~17% for nine months. That means her current revision process is not converting mistakes into future correct answers. Start a physical notebook: every wrong answer gets one page — the question, her working, the correct method, and the specific mistake in words ("used the wrong formula," "sign error," "misread the question"). Review it weekly. Track whether the same mistake-type repeats.</p>
+        <p class="why">Rationale: without an error-taxonomy she cannot see her own patterns. The flat wrong-rate is a signal that mistakes are not being retained as lessons.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">A note on volume</div>
+    <p>Rajshree is doing enough practice — 3,400 attempts across 299 tests in nine months is high volume. Adding more tests will not help. The interventions above are all about <em>quality of engagement per test</em>, not the number of tests. If anything, she may benefit from slightly fewer but more deliberate test sessions, with more time spent on the wrong-answer log afterwards.</p>
+  </div>
+</section>
+
+<footer>
+  <div>Rajshree — Performance Diagnostic Report · Sep 2025 – Jun 2026 · N=3,400 attempts across 299 tests</div>
+  <div>Prepared using de-duplicated attempt records</div>
+</footer>
+
+</div>
+
+<script>
+// Read design tokens
+const INK = '#0E1013';
+const INK2 = '#5B6067';
+const RULE = '#DBDDD8';
+const C_CORRECT = '#2F8F5C';
+const C_WRONG = '#B94A3B';
+const C_SKIP = '#C48412';
+const C_PARTIAL = '#7B4FA0';
+const C_CHEM = '#1C4E80';
+const C_PHY = '#B94A3B';
+const C_MATH = '#C48412';
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = INK2;
+Chart.defaults.borderColor = RULE;
+
+// Chart 1 — subject stacked
+new Chart(document.getElementById('chartSubject'), {
+  type: 'bar',
+  data: {
+    labels: ['Chemistry', 'Physics', 'Mathematics'],
+    datasets: [
+      {label: 'Correct', data: [994, 658, 632], backgroundColor: C_CORRECT, borderWidth: 0, borderRadius: 2},
+      {label: 'Wrong',   data: [228, 181, 148], backgroundColor: C_WRONG,   borderWidth: 0, borderRadius: 2},
+      {label: 'Skipped', data: [106, 176, 224], backgroundColor: C_SKIP,    borderWidth: 0, borderRadius: 2},
+      {label: 'Partial', data: [8, 9, 4],       backgroundColor: C_PARTIAL, borderWidth: 0, borderRadius: 2}
+    ]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: {display: false}, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw } } },
+    scales: {
+      x: { stacked: true, grid: { color: RULE }, ticks: { color: INK2 } },
+      y: { stacked: true, grid: { display: false }, ticks: { color: INK, font: { size: 13, weight: '500' } } }
+    }
+  }
+});
+
+// Chart 2 — skip rate by PC
+new Chart(document.getElementById('chartSkipPC'), {
+  type: 'line',
+  data: {
+    labels: ['PC 1 (easy)', 'PC 2', 'PC 3', 'PC 4 (hardest)'],
+    datasets: [
+      {label: 'Chemistry',   data: [6, 10, 9, 0],   borderColor: C_CHEM, backgroundColor: C_CHEM, tension: 0.2, borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7},
+      {label: 'Physics',     data: [9, 22, 43, 33], borderColor: C_PHY,  backgroundColor: C_PHY,  tension: 0.2, borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7, borderDash: [4,3]},
+      {label: 'Mathematics', data: [13, 19, 52, 67],borderColor: C_MATH, backgroundColor: C_MATH, tension: 0.2, borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7, borderDash: [8,4]}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: {display: false}, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw + '% skipped' } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: INK, font: { size: 12 } } },
+      y: { beginAtZero: true, max: 75, grid: { color: RULE }, ticks: { color: INK2, callback: v => v + '%' }, title: { display: true, text: 'Skip rate (%)', color: INK2, font: { size: 12 } } }
+    }
+  }
+});
+
+// Chart 3 — PC=3 skip trend over time
+new Chart(document.getElementById('chartPC3Trend'), {
+  type: 'line',
+  data: {
+    labels: ['Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26','Apr 26','May 26','Jun 26'],
+    datasets: [
+      {label: 'PC=3 skip rate', data: [45, 52, 44, 20, 17, 50, 32, 34, 11],
+       borderColor: C_SKIP, backgroundColor: 'rgba(196,132,18,0.08)', fill: true, tension: 0.3, borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: {display: false}, tooltip: { callbacks: { label: c => 'Skipped ' + c.raw + '% of PC=3 questions' } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: INK2 } },
+      y: { beginAtZero: true, max: 65, grid: { color: RULE }, ticks: { color: INK2, callback: v => v + '%' } }
+    }
+  }
+});
+
+// Chart 4 — Monthly outcome %
+const monthLabels = ['Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26','Apr 26','May 26','Jun 26'];
+new Chart(document.getElementById('chartMonthly'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [
+      {label: 'Correct %', data: [63.5, 61.6, 71.6, 67.6, 71.7, 67.7, 71.8, 66.3, 68.8], borderColor: C_CORRECT, backgroundColor: C_CORRECT, tension: 0.25, borderWidth: 2.5, pointRadius: 4},
+      {label: 'Wrong %',   data: [16.2, 16.0, 11.8, 18.1, 17.7, 15.2, 16.6, 18.7, 17.2], borderColor: C_WRONG,   backgroundColor: C_WRONG,   tension: 0.25, borderWidth: 2.5, pointRadius: 4, borderDash: [4,3]},
+      {label: 'Skipped %', data: [18.5, 21.8, 16.3, 14.0, 10.6, 14.9, 11.0, 15.0, 13.6], borderColor: C_SKIP,    backgroundColor: C_SKIP,    tension: 0.25, borderWidth: 2.5, pointRadius: 4, borderDash: [8,4]}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: {display: false}, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw + '%' } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: INK2 } },
+      y: { beginAtZero: true, max: 80, grid: { color: RULE }, ticks: { color: INK2, callback: v => v + '%' } }
+    }
+  }
+});
+
+// Chart 5 — Wrong rate by subject over time
+new Chart(document.getElementById('chartSubjWrong'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [
+      {label: 'Chemistry',   data: [16, 17, 8,  20, 14, 13, 23, 17, 18], borderColor: C_CHEM, backgroundColor: C_CHEM, tension: 0.25, borderWidth: 2.5, pointRadius: 4},
+      {label: 'Physics',     data: [18, 18, 12, 22, 16, 17, 12, 19, 20], borderColor: C_PHY,  backgroundColor: C_PHY,  tension: 0.25, borderWidth: 2.5, pointRadius: 4, borderDash: [4,3]},
+      {label: 'Mathematics', data: [14, 11, 14, 10, 23, 15, 10, 20, 12], borderColor: C_MATH, backgroundColor: C_MATH, tension: 0.25, borderWidth: 2.5, pointRadius: 4, borderDash: [8,4]}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: {display: false}, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw + '% wrong' } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: INK2 } },
+      y: { beginAtZero: true, max: 30, grid: { color: RULE }, ticks: { color: INK2, callback: v => v + '%' }, title: { display: true, text: 'Wrong-answer rate (%)', color: INK2 } }
+    }
+  }
+});
+</script>
+</body>
+</html>
